@@ -36,8 +36,12 @@ namespace arith {
 using namespace tir;
 
 class StmtSimplifier : public IRMutatorWithAnalyzer {
+ private:
+  bool skip_buffer_simplify_;
+
  public:
-  explicit StmtSimplifier(Analyzer* analyzer) : IRMutatorWithAnalyzer(analyzer) {}
+  explicit StmtSimplifier(Analyzer* analyzer, bool skip_buffer_simplify)
+      : IRMutatorWithAnalyzer(analyzer), skip_buffer_simplify_(skip_buffer_simplify) {}
 
   using Parent = IRMutatorWithAnalyzer;
   using Parent::VisitStmt;
@@ -84,8 +88,11 @@ class StmtSimplifier : public IRMutatorWithAnalyzer {
 
   // eliminate useless stores
   Stmt VisitStmt_(const StoreNode* op) final {
-    Stmt stmt = Parent::VisitStmt_(op);
-    op = stmt.as<StoreNode>();
+    if (!skip_buffer_simplify_) {
+      Stmt stmt = Parent::VisitStmt_(op);
+      op = stmt.as<StoreNode>();
+    }
+
     if (const LoadNode* load = op->value.as<LoadNode>()) {
       if (load->buffer_var.same_as(op->buffer_var) &&
           tir::ExprDeepEqual()(load->index, op->index)) {
@@ -101,11 +108,11 @@ class StmtSimplifier : public IRMutatorWithAnalyzer {
 namespace tir {
 namespace transform {
 
-Pass Simplify() {
-  auto pass_func = [](PrimFunc f, IRModule m, PassContext ctx) {
+Pass Simplify(bool skip_buffer_simplify) {
+  auto pass_func = [skip_buffer_simplify](PrimFunc f, IRModule m, PassContext ctx) {
     auto* n = f.CopyOnWrite();
     arith::Analyzer analyzer;
-    n->body = arith::StmtSimplifier(&analyzer).Simplify(std::move(n->body));
+    n->body = arith::StmtSimplifier(&analyzer, skip_buffer_simplify).Simplify(std::move(n->body));
     return f;
   };
   return CreatePrimFuncPass(pass_func, 0, "tir.Simplify", {});

@@ -172,7 +172,7 @@ TVM_DLL Pass RewriteUnsafeSelect();
  *
  * \return The pass.
  */
-TVM_DLL Pass Simplify();
+TVM_DLL Pass Simplify(bool skip_buffer_simplify = true);
 
 /*!
  * \brief Instruments bound checkers.

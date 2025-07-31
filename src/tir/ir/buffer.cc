@@ -174,6 +174,7 @@ inline void MergeMulModInsertElements(const std::vector<const PrimExpr*>& eles,
 // Return: a pair with (false, Expr()) if cannot be optimized.
 //         a pair with (true, optimized_expr) if can be optimized
 inline PrimExpr MergeMulMod(arith::Analyzer* analyzer, const PrimExpr& base) {
+  return base;
   using namespace tir;
   // 1. Prepare the lists.
   // We store two lists, a list that contain all the elements that match Mul and

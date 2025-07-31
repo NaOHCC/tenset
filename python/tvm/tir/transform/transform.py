@@ -16,8 +16,7 @@
 # under the License.
 """Wrapping existing transformations."""
 # pylint: disable=invalid-name
-from . import _ffi_api
-from . import function_pass as _fpass
+from . import _ffi_api, function_pass as _fpass
 
 
 def Apply(ftransform):
@@ -35,6 +34,7 @@ def Apply(ftransform):
     fpass : tvm.transform.Pass
         The result pass
     """
+
     # pylint: disable=unused-argument
     def _transform(func, mod, ctx):
         return ftransform(func)
@@ -55,6 +55,7 @@ def Filter(fcond):
     fpass : tvm.transform.Pass
         The result pass
     """
+
     # pylint: disable=unused-argument
     def _transform(func, mod, ctx):
         return func if fcond(func) else None
@@ -295,7 +296,7 @@ def RewriteUnsafeSelect():
     return _ffi_api.RewriteUnsafeSelect()
 
 
-def Simplify():
+def Simplify(skip_buffer_simplify=True):
     """Run arithmetic simplifications on the statements and expressions.
 
     Returns
@@ -303,7 +304,7 @@ def Simplify():
     fpass : tvm.transform.Pass
         The result pass
     """
-    return _ffi_api.Simplify()
+    return _ffi_api.Simplify(skip_buffer_simplify)
 
 
 def InstrumentBoundCheckers():

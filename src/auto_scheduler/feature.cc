@@ -590,7 +590,7 @@ std::tuple<ReuseType, float, float, float> ComputeReuse(
       }
 
       // NOTE(merrymercy): divide by cur_extent is not precise.
-      // The exact reuse_dis_bytes can be computed by analyzing the touch region of the 
+      // The exact reuse_dis_bytes can be computed by analyzing the touch region of the
       // previous for loop. However, the previous for loop is poped out of stack, so we cannot get it.
       return std::make_tuple(ReuseType::kSerialMultipleReadWrite, reuse_dis_iter / cur_extent,
                              reuse_dis_bytes / cur_extent, reuse_ct);
@@ -1335,6 +1335,7 @@ void GetPerStoreFeaturesWorkerFunc(const SearchTask& task, const State& state, i
       auto pass_list = Array<tvm::transform::Pass>();
       // Phase 0
       pass_list.push_back(tir::transform::InjectPrefetch());
+      pass_list.push_back(tir::transform::Simplify(false));
       pass_list.push_back(tir::transform::StorageFlatten(64, instrument_bound_checkers));
       // Phase 1
       pass_list.push_back(tir::transform::NarrowDataType(32));
