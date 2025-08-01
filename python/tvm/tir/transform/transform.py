@@ -296,7 +296,7 @@ def RewriteUnsafeSelect():
     return _ffi_api.RewriteUnsafeSelect()
 
 
-def Simplify(skip_buffer_simplify=True):
+def Simplify(disable_canonical_simplify=True):
     """Run arithmetic simplifications on the statements and expressions.
 
     Returns
@@ -304,7 +304,7 @@ def Simplify(skip_buffer_simplify=True):
     fpass : tvm.transform.Pass
         The result pass
     """
-    return _ffi_api.Simplify(skip_buffer_simplify)
+    return _ffi_api.Simplify(disable_canonical_simplify)
 
 
 def InstrumentBoundCheckers():

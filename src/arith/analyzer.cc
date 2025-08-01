@@ -120,9 +120,34 @@ PrimExpr Analyzer::Simplify(const PrimExpr& expr, int steps) {
   PrimExpr res = expr;
   for (int i = 0; i < steps; ++i) {
     res = this->rewrite_simplify(res);
-    if (tir::is_const_int(res) || ++i == steps) return res;
+    if (tir::is_const_int(res) || ++i == steps) {
+      return res;
+    }
     res = this->canonical_simplify(res);
-    if (tir::is_const_int(res)) return res;
+    if (tir::is_const_int(res)) {
+      return res;
+    }
+  }
+  return res;
+}
+
+PrimExpr Analyzer::Simplify(const PrimExpr& expr, bool disable_rewrite_simplify,
+                            bool disable_canonical_simplify, int steps) {
+  if (tir::is_const_int(expr)) return expr;
+  PrimExpr res = expr;
+  for (int i = 0; i < steps; ++i) {
+    if (!disable_rewrite_simplify) {
+      res = this->rewrite_simplify(res);
+      if (tir::is_const_int(res) || ++i == steps) {
+        return res;
+      }
+    }
+    if (!disable_canonical_simplify) {
+      res = this->canonical_simplify(res);
+      if (tir::is_const_int(res)) {
+        return res;
+      }
+    }
   }
   return res;
 }

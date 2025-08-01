@@ -37,17 +37,22 @@ using namespace tir;
 
 class StmtSimplifier : public IRMutatorWithAnalyzer {
  private:
-  bool skip_buffer_simplify_;
+  bool disable_canonical_simplify_;
 
  public:
-  explicit StmtSimplifier(Analyzer* analyzer, bool skip_buffer_simplify)
-      : IRMutatorWithAnalyzer(analyzer), skip_buffer_simplify_(skip_buffer_simplify) {}
+  explicit StmtSimplifier(Analyzer* analyzer, bool disable_canonical_simplify)
+      : IRMutatorWithAnalyzer(analyzer), disable_canonical_simplify_(disable_canonical_simplify) {}
 
   using Parent = IRMutatorWithAnalyzer;
   using Parent::VisitStmt;
   using Parent::VisitStmt_;
 
   PrimExpr VisitExpr(const PrimExpr& expr) final { return analyzer_->Simplify(expr); }
+
+  PrimExpr VisitExpr(const PrimExpr& expr, bool disable_rewrite_simplify,
+                     bool disable_canonical_simplify) {
+    return analyzer_->Simplify(expr, disable_rewrite_simplify, disable_canonical_simplify);
+  }
 
   Stmt Simplify(Stmt stmt) { return operator()(std::move(stmt)); }
 
@@ -86,12 +91,33 @@ class StmtSimplifier : public IRMutatorWithAnalyzer {
     }
   }
 
+  // Control simplify store expression.
+  Stmt MyVisitStmt_(const StoreNode* op, bool disable_rewrite_simplify,
+                    bool disable_canonical_simplify) {
+    PrimExpr value =
+        this->VisitExpr(op->value, disable_rewrite_simplify, disable_canonical_simplify);
+    PrimExpr index =
+        this->VisitExpr(op->index, disable_rewrite_simplify, disable_canonical_simplify);
+    PrimExpr predicate = this->VisitExpr(op->predicate);
+    if (value.same_as(op->value) && index.same_as(op->index) && predicate.same_as(op->predicate)) {
+      return GetRef<Stmt>(op);
+    } else {
+      auto n = CopyOnWrite(op);
+      n->value = std::move(value);
+      n->index = std::move(index);
+      n->predicate = std::move(predicate);
+      return Stmt(n);
+    }
+  }
+
   // eliminate useless stores
   Stmt VisitStmt_(const StoreNode* op) final {
-    if (!skip_buffer_simplify_) {
-      Stmt stmt = Parent::VisitStmt_(op);
-      op = stmt.as<StoreNode>();
-    }
+    // if (!disable_canonical_simplify_) {
+    //   Stmt stmt = Parent::VisitStmt_(op);
+    //   op = stmt.as<StoreNode>();
+    // }
+    Stmt stmt = MyVisitStmt_(op, false, disable_canonical_simplify_);
+    op = stmt.as<StoreNode>();
 
     if (const LoadNode* load = op->value.as<LoadNode>()) {
       if (load->buffer_var.same_as(op->buffer_var) &&
@@ -108,11 +134,12 @@ class StmtSimplifier : public IRMutatorWithAnalyzer {
 namespace tir {
 namespace transform {
 
-Pass Simplify(bool skip_buffer_simplify) {
-  auto pass_func = [skip_buffer_simplify](PrimFunc f, IRModule m, PassContext ctx) {
+Pass Simplify(bool disable_canonical_simplify) {
+  auto pass_func = [disable_canonical_simplify](PrimFunc f, IRModule m, PassContext ctx) {
     auto* n = f.CopyOnWrite();
     arith::Analyzer analyzer;
-    n->body = arith::StmtSimplifier(&analyzer, skip_buffer_simplify).Simplify(std::move(n->body));
+    n->body =
+        arith::StmtSimplifier(&analyzer, disable_canonical_simplify).Simplify(std::move(n->body));
     return f;
   };
   return CreatePrimFuncPass(pass_func, 0, "tir.Simplify", {});
